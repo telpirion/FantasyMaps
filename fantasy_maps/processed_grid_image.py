@@ -84,6 +84,19 @@ class ProcessedGridImage():
     return json.dumps(dnd_json_as_dict)
 
 
+  def print_prediction_scores(self):
+    # ids, confidences, displayNames, bboxes
+    print(f"Prediction number: {num_prediction + 1}\n")
+    confidences = prediction_["confidences"]
+    display_names = prediction_["displayNames"]
+    bboxes.extend(prediction_["bboxes"])
+
+    for count, id in enumerate(ids):
+      print(f"ID: {id}")
+      print(f"Display name: {display_names[count]}")
+      print(f"Confidence: {confidences[count]}")
+      print(f"Bounding boxes: {bboxes[count]}\n\n")
+
   def _compute_grid_based_boxes(self):
     
     grid_based_boxes = []

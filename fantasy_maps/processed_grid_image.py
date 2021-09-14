@@ -37,7 +37,6 @@ class ProcessedGridImage():
   def show(self):
     # Begin plotting bounding box results
     ia.seed(1)
-    %matplotlib inline
 
     image = imageio.imread(self.local_file_uri)
 
@@ -51,7 +50,6 @@ class ProcessedGridImage():
 
     # Begin plotting bounding box results
     ia.seed(1)
-    %matplotlib inline
 
     image = imageio.imread(self.local_file_uri)
     

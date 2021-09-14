@@ -12,7 +12,7 @@ setup(
     install_requires=['google-cloud-aiplatform==1.3.0',
                       'google-cloud-storage',
                       'jsonlines',
-                      'PIL'
+                      'Pillow',
                       'imgaug'                     
                       ],
 

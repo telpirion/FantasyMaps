@@ -15,7 +15,8 @@ class ProcessedGridImage:
     with extraction techniques for Vertex AI prediction outputs.
     """
 
-    CONFIDENCE_THRESHOLD = 0.85
+    CONFIDENCE_THRESHOLD = 0.3
+    CELL_LABEL = 'cell'
 
     def __init__(
         self,
@@ -166,13 +167,15 @@ class ProcessedGridImage:
         # Step 4. Update the training manifest file
         if use_prediction_results:
             data_row = {
-                "imageGcsUri": self.gcs_file_uri,
-                "boundingBoxAnnotations": self.bboxes
+                'imageGcsUri': self.gcs_file_uri,
+                'boundingBoxAnnotations': self.bboxes
             }
         else:
             # TODO(telpirion): Add code to upload normalized training data
             pass
 
+        # Prepare data for training
+        data_row = self._prepare_data_for_training(data_row=data_row)
         training_data = training_data + json.dumps(data_row)
 
         # Step 5. Save the updated training manifest file back to the bucket
@@ -226,6 +229,34 @@ class ProcessedGridImage:
         self.local_file_uri = f'tmp/{image_file_name}'
         blob.download_to_filename(self.local_file_uri )
         
+    def _prepare_data_for_training(self, data_row):
+        """Updates bounding box data for model training.
+
+        This method adds a label to all bounding boxes (CELL_LABEL) and drops
+        all of the training data below the confidence threshold
+
+        Args:
+            data_row: the row of data used for model training
+        """
+        training_bbox_data = []
+        for count, bbox in enumerate(data_row['boundingBoxAnnotations']):
+
+            confidence = self.confidences[count]
+            if confidence < self.CONFIDENCE_THRESHOLD:
+                break
+
+            training_bbox_data.append(
+                {
+                    'displayName': self.CELL_LABEL,
+                    'xMin': bbox[0],
+                    'yMin': bbox[1],
+                    'xMax': bbox[2],
+                    'yMax': bbox[3]
+                }
+            )
+        
+        data_row['boundingBoxAnnotations'] = training_bbox_data
+        return data_row
 
     def _show(self, bboxes):
         """PRIVATE. Renders the image with bounding boxes overlaid on top.

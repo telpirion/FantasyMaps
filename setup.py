@@ -11,9 +11,10 @@ setup(
     packages=['fantasy_maps'],
     install_requires=['google-cloud-aiplatform==1.3.0',
                       'google-cloud-storage',
+                      'imgaug', 
                       'jsonlines',
-                      'Pillow',
-                      'imgaug'                     
+                      'pillow',
+                      'pytest'                   
                       ],
 
     classifiers=[

@@ -3,8 +3,10 @@ import imgaug as ia
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 import json
 import math
+import os
 import PIL
 
+from google.cloud import storage
 
 class ProcessedGridImage:
     """A wrapper that combines image plotting and bounding boxes.
@@ -12,6 +14,8 @@ class ProcessedGridImage:
     This class combines image plotting features from imageio, imguag, and pillow
     with extraction techniques for Vertex AI prediction outputs.
     """
+
+    CONFIDENCE_THRESHOLD = 0.85
 
     def __init__(
         self,
@@ -116,6 +120,112 @@ class ProcessedGridImage:
         for count, id in enumerate(self.confidences):
             print(f"Display name: {self.confidences[count]}")
             print(f"Bounding boxes: {self.bboxes[count]}\n\n")
+
+    def store_image_as_dataset_row(self, gcs_bucket, gcs_prefix, *,
+        training_data_file=None, use_prediction_results=True):
+        """Saves image and bounding boxes as Vertex AI training data row.
+
+        Args:
+            gcs_bucket: the Cloud Storage bucket to store the image, without 'gs://'
+            gcs_prefix: the 'folder' in the bucket to store the image
+            training_data_file: Optional. The Cloud Storage URI of the file to
+                append this training data to. Must be in gcs_bucket provided in
+                args
+        """
+
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(gcs_bucket)
+
+        # Step 1. Save the image to GCS
+        if not self.local_file_uri and not self.gcs_file_uri:
+            raise AttributeError('Neither local nor GCS URI set')
+
+        elif not self.gcs_file_uri:
+            self.upload_local_image_to_gcs(gcs_bucket, gcs_prefix)
+
+        # Step 2. Determine whether the training manifest file exists already
+        if training_data_file:
+            # TODO(telpirion): Add code to download, verify training data file
+            pass
+        else:
+            # If no training data file is provided, assume that the file name
+            # is 'index.jsonl' and it is in the same prefix/folder as the image
+            training_data_file = f'{gcs_prefix}/index.jsonl'
+        
+        training_data_in_bucket = bucket.blob(training_data_file)
+
+        # Step 3. Get or create the training manifest file
+        training_data = ''
+        if training_data_in_bucket.exists():
+            training_data = training_data_in_bucket.download_as_string()
+            training_data = training_data.decode('utf-8')
+
+            # Assume that we need to add a new line feed to the downloaded data
+            training_data += '\n'
+
+        # Step 4. Update the training manifest file
+        if use_prediction_results:
+            data_row = {
+                "imageGcsUri": self.gcs_file_uri,
+                "boundingBoxAnnotations": self.bboxes
+            }
+        else:
+            # TODO(telpirion): Add code to upload normalized training data
+            pass
+
+        training_data = training_data + json.dumps(data_row)
+
+        # Step 5. Save the updated training manifest file back to the bucket
+        tmp_training_data_file = bucket.blob(f'{training_data_file}.tmp')
+        tmp_training_data_file.upload_from_string(training_data)
+        training_data_in_bucket.rewrite(tmp_training_data_file)
+        tmp_training_data_file.delete()
+
+    def upload_local_image_to_gcs(self, gcs_bucket, gcs_prefix):
+        """Saves a copy of this file to Google Cloud Storage.
+        
+        Args:
+            gcs_bucket: the bucket to store the image to
+            gcs_prefix: the folder in the bucket to save to.
+        """
+        storage_client = storage.Client()
+        file_name = self.local_file_uri.split('/')[-1]
+        bucket = storage_client.bucket(gcs_bucket)
+        blob = bucket.blob(f'{gcs_prefix}/{file_name}')
+
+        # Check whether this file is already uploaded.
+        if not blob.exists():
+            blob.upload_from_filename(self.local_file_uri)
+
+        self.gcs_file_uri = f'gs://{gcs_bucket}/{gcs_prefix}/{file_name}'
+
+    def download_gcs_image_to_local(self):
+        """Save an image from Cloud Storage to the local environment
+        """
+        storage_client = storage.Client()
+
+        # Assume that the GCS URI was saved as 'gs://bucket/prefix/filename'
+        image_bucket_uri = self.gcs_file_uri.split('/')[0]
+        image_file_name = self.gcs_file_uri.split('/')[-1]
+        image_bucket = storage_client.bucket(image_bucket_uri)
+        
+        # Ensure that the GCS image exists
+        blob_names = image_bucket.list_blobs()
+        filtered_blobs= filter(
+            lambda blob: blob.name.find(image_file_name) > -1, blob_names)
+
+        if len(filtered_blobs) == 0:
+            raise NameError('Check image GCS URI')
+
+        # Make a tmp directory
+        if not os.path.exists('tmp'):
+            os.mkdir('tmp')
+
+        # Download file to local
+        blob = filtered_blobs[0]
+        self.local_file_uri = f'tmp/{image_file_name}'
+        blob.download_to_filename(self.local_file_uri )
+        
 
     def _show(self, bboxes):
         """PRIVATE. Renders the image with bounding boxes overlaid on top.

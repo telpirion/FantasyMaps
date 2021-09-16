@@ -45,3 +45,5 @@ def test_save_training_data_to_gcs_integration(setup):
 
     assert processed_image is not None
     assert processed_image_str.find('ruined') > -1
+
+    processed_image.store_image_as_dataset_row('video-erschmid', 'fantasy-maps-tests')

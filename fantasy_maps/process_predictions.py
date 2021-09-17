@@ -1,5 +1,6 @@
 from typing import Tuple
 
+
 def process_predictions(predictions, is_printed_to_out=False) -> Tuple:
     """Extracts IDs, confidences, display names, bounding boxes from first VertexAI prediction
 
@@ -9,7 +10,7 @@ def process_predictions(predictions, is_printed_to_out=False) -> Tuple:
     Returns:
     Tuple(bounding boxes, confidences, IDs, display names)
     """
-    if (len(predictions) == 0):
+    if len(predictions) == 0:
         return
 
     prediction_ = predictions[0]
@@ -26,5 +27,5 @@ def process_predictions(predictions, is_printed_to_out=False) -> Tuple:
             print(f"Display name: {display_names[count]}")
             print(f"Confidence: {confidences[count]}")
             print(f"Bounding boxes: {bboxes[count]}\n\n")
-  
+
     return (bboxes, confidences, ids, display_names)

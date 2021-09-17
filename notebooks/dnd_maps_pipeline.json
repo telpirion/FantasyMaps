@@ -1,0 +1,376 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-automlimagetrainingjob-run": {
+        "executorLabel": "exec-automlimagetrainingjob-run",
+        "inputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-automlimagetrainingjob-run-2": {
+        "executorLabel": "exec-automlimagetrainingjob-run-2",
+        "inputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-imagedataset-create": {
+        "executorLabel": "exec-imagedataset-create",
+        "inputDefinitions": {
+          "parameters": {
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-model-deploy": {
+        "executorLabel": "exec-model-deploy",
+        "inputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "endpoint": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-automlimagetrainingjob-run": {
+          "container": {
+            "args": [
+              "--init.display_name",
+              "train-dnd-maps-full-grid-model-online-20210916201900",
+              "--init.prediction_type",
+              "object_detection",
+              "--init.model_type",
+              "CLOUD_HIGH_ACCURACY_1",
+              "--method.model_display_name",
+              "dnd-maps-full-grid-model-online-20210916201900",
+              "--method.training_fraction_split",
+              "0.7",
+              "--method.validation_fraction_split",
+              "0.2",
+              "--method.test_fraction_split",
+              "0.1",
+              "--method.budget_milli_node_hours",
+              "40000",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['model'].uri}}",
+              "--init.project",
+              "{{$.inputs.parameters['project']}}",
+              "--method.dataset",
+              "{{$.inputs.artifacts['dataset'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "AutoMLImageTrainingJob",
+              "--method_name",
+              "run"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        },
+        "exec-automlimagetrainingjob-run-2": {
+          "container": {
+            "args": [
+              "--init.display_name",
+              "train-dnd-maps-full-grid-model-exportable-20210916201900",
+              "--init.prediction_type",
+              "object_detection",
+              "--init.model_type",
+              "MOBILE_TF_HIGH_ACCURACY_1",
+              "--method.model_display_name",
+              "dnd-maps-full-grid-model-exportable-20210916201900",
+              "--method.training_fraction_split",
+              "0.7",
+              "--method.validation_fraction_split",
+              "0.2",
+              "--method.test_fraction_split",
+              "0.1",
+              "--method.budget_milli_node_hours",
+              "90000",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['model'].uri}}",
+              "--init.project",
+              "{{$.inputs.parameters['project']}}",
+              "--method.dataset",
+              "{{$.inputs.artifacts['dataset'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "AutoMLImageTrainingJob",
+              "--method_name",
+              "run"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        },
+        "exec-imagedataset-create": {
+          "container": {
+            "args": [
+              "--method.display_name",
+              "dnd-maps-max-grid-20210916201900",
+              "--method.gcs_source",
+              "gs://video-erschmid/DnD/map_training_data.jsonl",
+              "--method.import_schema_uri",
+              "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['dataset'].uri}}",
+              "--method.project",
+              "{{$.inputs.parameters['project']}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "ImageDataset",
+              "--method_name",
+              "create"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        },
+        "exec-model-deploy": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['endpoint'].uri}}",
+              "--init.project",
+              "{{$.inputs.parameters['project']}}",
+              "--init.model_name",
+              "{{$.inputs.artifacts['model'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "Model",
+              "--method_name",
+              "deploy"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "dnd-maps-training-and-deployment"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "automlimagetrainingjob-run": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-automlimagetrainingjob-run"
+            },
+            "dependentTasks": [
+              "imagedataset-create"
+            ],
+            "inputs": {
+              "artifacts": {
+                "dataset": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "dataset",
+                    "producerTask": "imagedataset-create"
+                  }
+                }
+              },
+              "parameters": {
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "automlimagetrainingjob-run"
+            }
+          },
+          "automlimagetrainingjob-run-2": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-automlimagetrainingjob-run-2"
+            },
+            "dependentTasks": [
+              "imagedataset-create"
+            ],
+            "inputs": {
+              "artifacts": {
+                "dataset": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "dataset",
+                    "producerTask": "imagedataset-create"
+                  }
+                }
+              },
+              "parameters": {
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "automlimagetrainingjob-run-2"
+            }
+          },
+          "imagedataset-create": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-imagedataset-create"
+            },
+            "inputs": {
+              "parameters": {
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "imagedataset-create"
+            }
+          },
+          "model-deploy": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-model-deploy"
+            },
+            "dependentTasks": [
+              "automlimagetrainingjob-run"
+            ],
+            "inputs": {
+              "artifacts": {
+                "model": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "model",
+                    "producerTask": "automlimagetrainingjob-run"
+                  }
+                }
+              },
+              "parameters": {
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "model-deploy"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "project": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.7.2"
+  },
+  "runtimeConfig": {
+    "parameters": {
+      "project": {
+        "stringValue": "video-erschmid"
+      }
+    }
+  }
+}

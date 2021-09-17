@@ -16,7 +16,7 @@ class ProcessedGridImage:
     with extraction techniques for Vertex AI prediction outputs.
     """
 
-    CONFIDENCE_THRESHOLD = 0.3
+    CONFIDENCE_THRESHOLD = 0.7
     CELL_LABEL = "cell"
 
     def __init__(

@@ -139,6 +139,8 @@ class ProcessedGridImage:
             training_data_file: Optional. The Cloud Storage URI of the file to
                 append this training data to. Must be in gcs_bucket provided in
                 args
+            use_prediction_results: Optional. If false, the normalized results
+                for this image are stored as training data.
         """
 
         storage_client = storage.Client()
@@ -165,11 +167,14 @@ class ProcessedGridImage:
         # Step 3. Get or create the training manifest file
         training_data = ""
         if training_data_in_bucket.exists():
-            training_data = training_data_in_bucket.download_as_string()
+            training_data = training_data_in_bucket.download_as_bytes()
             training_data = training_data.decode("utf-8")
 
             # Assume that we need to add a new line feed to the downloaded data
             training_data += "\n"
+
+            # Delete the old blob now that it's no longer needed.
+            bucket.delete_blob(training_data_file)
 
         # Step 4. Update the training manifest file
         if use_prediction_results:
@@ -186,10 +191,8 @@ class ProcessedGridImage:
         training_data = training_data + json.dumps(data_row)
 
         # Step 5. Save the updated training manifest file back to the bucket
-        tmp_training_data_file = bucket.blob(f"{training_data_file}.tmp")
-        tmp_training_data_file.upload_from_string(training_data)
-        training_data_in_bucket.rewrite(tmp_training_data_file)
-        tmp_training_data_file.delete()
+        updated_training_data_file = bucket.blob(training_data_file)
+        updated_training_data_file.upload_from_string(training_data)
 
     def upload_local_image_to_gcs(self, gcs_bucket, gcs_prefix):
         """Saves a copy of this file to Google Cloud Storage.

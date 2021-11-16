@@ -1,7 +1,7 @@
 import math
+from typing import Tuple, Union
 
-
-def convert_fantasy_map_to_bounding_boxes(map_dict):
+def convert_fantasy_map_to_bounding_boxes(map_dict : dict) -> Tuple:
     """Translates fantasy map values from dictionary into bounding boxes.
 
     After conversion, the bounding boxes can then be used as input for Vertex AI
@@ -56,3 +56,84 @@ def convert_fantasy_map_to_bounding_boxes(map_dict):
     file_name = map_dict["path"].split("/")[-1]
 
     return (bboxes, file_name, width, height)
+
+def convert_batch_predictions_to_training_data(
+    json_data: dict,
+    minimum_confidence_value : float = 0.5
+) -> Union[dict, None]:
+    """Transforms IOD batch prediction results JSON into training data.
+
+    Assumes input in the following format:
+    ```
+    {
+        "instance": "[GCS_URI]",
+        "prediction": {
+            "ids": [],
+            "bboxes": [
+                [
+                    [X_MIN], [X_MAX], [Y_MIN], [Y_MAX]
+                ]
+            ],
+            "confidences": [],
+            "display_names": []
+        }
+    }
+    ```
+
+    The output needs to correspond to Vertex IOD training format:
+
+    ```
+    {
+        "imageGcsUri": "[GCS_URI]",
+        "boundingBoxAnnotations": [
+            {
+                "displayName": "cell",
+                "xMin": [X_MIN],
+                "yMin": [Y_MIN],
+                "xMax": [X_MAX],
+                "yMax": [Y_MAX]
+
+            },
+            ...
+        ]
+    }
+    ```
+    
+    Args:
+        json_data: the (batch) prediction data to transform
+        minimum_confidence_value: the lowest allowable confidence value to
+            allow in the resulting output. This acts as a filter for the 
+            bounding boxes that are transformed into training data. Default
+            value is 0.5.
+    
+    Returns:
+        Vertex AI image object detection training data JSON (see remarks) or
+        None if all predictions are below the minimum confidence value
+    """
+    try:
+        image_gcs_uri = json_data["instance"]
+        prediction = json_data["prediction"]
+        bboxes = []
+
+        for num, value in enumerate(prediction["confidences"]):
+            if value > minimum_confidence_value:
+                bbox = prediction["bboxes"][num]
+                bboxes.append({
+                        "displayName": "cell",  # "cell" is a constant
+                        "xMin": bbox[0],
+                        "yMin": bbox[2],
+                        "xMax": bbox[1],
+                        "yMax": bbox[3]
+
+                    })
+
+        if len(bboxes) == 0:
+            return None
+        else:
+            return {
+                "imageGcsUri": image_gcs_uri,
+                "boundingBoxAnnotations": bboxes
+            }
+
+    except KeyError as key_error:
+        print(f"Input has incorrect or missing key.\nFull error:\n{key_error}")

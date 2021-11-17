@@ -66,7 +66,10 @@ def convert_batch_predictions_to_training_data(
     Assumes input in the following format:
     ```
     {
-        "instance": "[GCS_URI]",
+        "instance": {
+            "content": "[GCS_URI]",
+            "mimeType": "[MIME_TYPE]"
+        },
         "prediction": {
             "ids": [],
             "bboxes": [
@@ -111,7 +114,7 @@ def convert_batch_predictions_to_training_data(
         None if all predictions are below the minimum confidence value
     """
     try:
-        image_gcs_uri = json_data["instance"]
+        image_gcs_uri = json_data["instance"]["content"]
         prediction = json_data["prediction"]
         bboxes = []
 

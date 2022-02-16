@@ -112,13 +112,13 @@
           "container": {
             "args": [
               "--init.display_name",
-              "train-dnd-maps-full-grid-model-online-20210916201900",
+              "train-dnd-maps-full-grid-model-online-20211212185026",
               "--init.prediction_type",
               "object_detection",
               "--init.model_type",
               "CLOUD_HIGH_ACCURACY_1",
               "--method.model_display_name",
-              "dnd-maps-full-grid-model-online-20210916201900",
+              "dnd-maps-full-grid-model-online-20211212185026",
               "--method.training_fraction_split",
               "0.7",
               "--method.validation_fraction_split",
@@ -152,13 +152,13 @@
           "container": {
             "args": [
               "--init.display_name",
-              "train-dnd-maps-full-grid-model-exportable-20210916201900",
+              "train-dnd-maps-full-grid-model-exportable-20211212185026",
               "--init.prediction_type",
               "object_detection",
               "--init.model_type",
               "MOBILE_TF_HIGH_ACCURACY_1",
               "--method.model_display_name",
-              "dnd-maps-full-grid-model-exportable-20210916201900",
+              "dnd-maps-full-grid-model-exportable-20211212185026",
               "--method.training_fraction_split",
               "0.7",
               "--method.validation_fraction_split",
@@ -192,9 +192,9 @@
           "container": {
             "args": [
               "--method.display_name",
-              "dnd-maps-max-grid-20210916201900",
+              "dnd-maps-max-grid-20211212185026",
               "--method.gcs_source",
-              "gs://video-erschmid/DnD/map_training_data.jsonl",
+              "gs://fantasy-maps/map_training_data.jsonl",
               "--method.import_schema_uri",
               "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml",
               "--executor_input",
@@ -364,12 +364,12 @@
       }
     },
     "schemaVersion": "2.0.0",
-    "sdkVersion": "kfp-1.7.2"
+    "sdkVersion": "kfp-1.8.10"
   },
   "runtimeConfig": {
     "parameters": {
       "project": {
-        "stringValue": "video-erschmid"
+        "stringValue": "fantasymaps-334622"
       }
     }
   }

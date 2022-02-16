@@ -133,3 +133,4 @@ dmypy.json
 
 # Downloaded sample data
 sample_data/
+map_training_data.jsonl

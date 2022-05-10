@@ -1,7 +1,7 @@
 from typing import Union, Tuple
 
 
-def process_predictions(predictions, is_printed_to_out=False) -> Union(Tuple, None):
+def process_predictions(predictions, is_printed_to_out=False) -> Union[Tuple, None]:
     """Extracts IDs, confidences, display names, bounding boxes from first VertexAI prediction
 
     Args:

@@ -1,0 +1,102 @@
+name: Create training metadata from firestore op
+inputs:
+- {name: collection_name, type: String}
+- {name: timestamp_str, type: String}
+- {name: project_id, type: String}
+- {name: bucket_name, type: String}
+outputs:
+- {name: Output, type: String}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - |2
+
+      if ! [ -x "$(command -v pip)" ]; then
+          python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+      fi
+
+      PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-storage' 'google-cloud-firestore' 'kfp==1.8.12' && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp -d)
+      printf "%s" "$0" > "$program_path/ephemeral_component.py"
+      python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+    - |2+
+
+      import kfp
+      from kfp.v2 import dsl
+      from kfp.v2.dsl import *
+      from typing import *
+
+      def create_training_metadata_from_firestore_op(
+          collection_name: str,
+          timestamp_str: str,
+          project_id: str,
+          bucket_name: str
+      ) -> str:
+          from google.cloud import firestore
+          from google.cloud import storage
+
+          gs_training_data_uri = f"Manifests/map_training_{timestamp_str}.jsonl"
+
+          print(f"Project ID: {project_id}")
+
+          firestore_client = firestore.Client(project=project_id)
+          collection_ref = firestore_client.collection(collection_name)
+
+          training_data = []
+
+          # Get all of the non-test training data from collection
+          docs = (collection_ref
+                      .where("source", "==", "TrainingData")
+                      .select(["gcsURI", "computedBBoxes"])
+                      #.limit(10)
+                      .stream())
+          for doc in docs:
+              doc_dict = doc.to_dict()
+
+              datum = {
+                  "imageGcsUri": doc_dict["gcsURI"],
+                  "boundingBoxAnnotations": doc_dict["computedBBoxes"]
+              }
+              training_data.append(datum)
+
+          # Collect user submitted and scraped data
+          scraped_docs = (collection_ref
+                      .where("source", "==", "ScrapedData")
+                      .select(["gcsURI", "computedBBoxes"])
+                      .stream())
+
+          for d in scraped_docs:
+              doc_dict = d.to_dict()
+
+              datum = {
+                  "imageGcsUri": doc_dict["gcsURI"],
+                  "boundingBoxAnnotations": doc_dict["computedBBoxes"]
+              }
+              training_data.append(datum)
+
+          # TODO: define splits manually to verify differences between
+          # enhanced and unenhanced scraped data
+
+
+          storage_client = storage.Client(project=project_id)
+          bucket = storage_client.bucket(bucket_name)
+
+          input_str = "\n".join([str(d) for d in training_data])
+          file_blob = bucket.blob(gs_training_data_uri)
+          file_blob.upload_from_string(input_str)
+
+          full_uri = f"gs://{bucket_name}/{gs_training_data_uri}"
+
+          return full_uri
+
+    args:
+    - --executor_input
+    - {executorInput: null}
+    - --function_to_execute
+    - create_training_metadata_from_firestore_op

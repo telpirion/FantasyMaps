@@ -1,0 +1,66 @@
+name: Save bp output to firestore
+inputs:
+- {name: bp_resource, type: String}
+- {name: collection_name, type: String}
+- {name: gcs_bucket_name, type: String}
+- {name: project, type: String}
+- {name: location, type: String}
+- {name: minimum_confidence, type: Float}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - |2
+
+      if ! [ -x "$(command -v pip)" ]; then
+          python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+      fi
+
+      PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-aiplatform' 'google-cloud-firestore' 'kfp==1.8.12' && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp -d)
+      printf "%s" "$0" > "$program_path/ephemeral_component.py"
+      python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+    - "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing\
+      \ import *\n\ndef save_bp_output_to_firestore(\n    bp_resource: str,\n    collection_name:\
+      \ str,\n    gcs_bucket_name: str,\n    project: str,\n    location: str,\n \
+      \   minimum_confidence: float):\n\n    import json\n\n    from google.cloud\
+      \ import aiplatform as aip\n    from google.cloud import firestore as fs\n\n\
+      \    aip.init(project=project, location=location)\n\n    bp_job = aip.BatchPredictionJob(\n\
+      \        batch_prediction_job_name=bp_resource)\n\n    output_info = bp_job.output_info\n\
+      \n    # Get the predictions out of GCS\n    predictions = []\n    for out in\
+      \ bp_job.iter_outputs():\n        out_str = out.download_as_string()\n     \
+      \   p = out_str.decode(\"utf-8\")\n\n        ps = p.split(\"\\n\")\n       \
+      \ predictions.extend(ps)\n\n    if len(predictions) is 0:\n        return\n\n\
+      \    fs_client = fs.Client(project=project)\n    collection_ref = fs_client.collection(collection_name)\n\
+      \n    docs = []\n    prediction_data = dict()\n\n    # Query Firestore for all\
+      \ documents relevant to these predictions\n    for p in predictions:\n     \
+      \   try:\n            data = json.loads(p)\n            instance = data[\"instance\"\
+      ][\"content\"]\n            prediction_data[instance] = data\n            docs_ref\
+      \ = collection_ref.where(\"gcsURI\", \"==\", instance).stream()\n\n        \
+      \    docs_tmp = [doc for doc in docs_ref]\n            docs.extend(docs_tmp)\n\
+      \n        except json.JSONDecodeError as e:\n            print(p)\n\n    print(f\"\
+      Images processed: {len(docs)}\")\n\n    # Update all of the Firestore documents\
+      \ with the predictions\n    for d in docs:\n        doc_dict = d.to_dict()\n\
+      \        gcsURI = doc_dict[\"gcsURI\"]\n        doc_predictions = prediction_data[gcsURI]\n\
+      \n        # Iterate over bboxes and labels to create\n        # training-ready\
+      \ data\n        bboxes = doc_predictions[\"prediction\"][\"bboxes\"]\n     \
+      \   labels = doc_predictions[\"prediction\"][\"displayNames\"]\n        confidences\
+      \ = doc_predictions[\"prediction\"][\"confidences\"]\n\n        training_data\
+      \ = []\n\n        for i, e in enumerate(bboxes):\n            confidence = confidences[i]\n\
+      \            if confidence >= minimum_confidence:\n                training_data.append({\n\
+      \                    \"displayName\": labels[i],\n                    \"xMin\"\
+      : e[0],\n                    \"xMax\": e[1],\n                    \"yMin\":\
+      \ e[2],\n                    \"yMax\": e[3],\n                })\n\n       \
+      \ # If training_data is empty for this image, skip\n        if len(training_data)\
+      \ is 0:\n            continue\n\n        d.reference.set({\"predictedBBoxes\"\
+      : training_data}, merge=True) \n\n"
+    args:
+    - --executor_input
+    - {executorInput: null}
+    - --function_to_execute
+    - save_bp_output_to_firestore

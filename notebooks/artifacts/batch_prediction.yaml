@@ -1,0 +1,77 @@
+name: Batch prediction
+inputs:
+- {name: gcs_bucket_name, type: String}
+- {name: gcs_prefix_name, type: String}
+- {name: input_file_1, type: String}
+- {name: input_file_2, type: String}
+- {name: project_id, type: String}
+- {name: location, type: String}
+- {name: model_id, type: String}
+outputs:
+- {name: Output, type: String}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - |2
+
+      if ! [ -x "$(command -v pip)" ]; then
+          python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+      fi
+
+      PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-aiplatform' 'kfp==1.8.12' && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp -d)
+      printf "%s" "$0" > "$program_path/ephemeral_component.py"
+      python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+    - |2+
+
+      import kfp
+      from kfp.v2 import dsl
+      from kfp.v2.dsl import *
+      from typing import *
+
+      def batch_prediction(
+          gcs_bucket_name: str,
+          gcs_prefix_name: str,
+          input_file_1: str,
+          input_file_2: str,
+          project_id: str,
+          location: str,
+          model_id: str,
+      ) -> str:
+
+          from google.cloud import aiplatform as aip
+          from datetime import datetime
+
+          csv_input_files = [input_file_1, input_file_2]
+
+          timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+          aip.init(project=project_id, location=location)
+
+          model_resource_name = f"projects/{project_id}/locations/{location}/models/{model_id}"
+          model = aip.Model(model_resource_name)
+
+          batch_prediction_job = model.batch_predict(
+              job_display_name=f"reddit-scraping-batch-predict-{timestamp}",
+              gcs_source=csv_input_files,
+              gcs_destination_prefix=f"gs://{gcs_bucket_name}/{gcs_prefix_name}",
+              sync=True
+          )
+
+          batch_prediction_job.wait()
+
+          print(batch_prediction_job.display_name)
+          print(batch_prediction_job.resource_name)
+          print(batch_prediction_job.state)
+          return str(batch_prediction_job.resource_name)
+
+    args:
+    - --executor_input
+    - {executorInput: null}
+    - --function_to_execute
+    - batch_prediction

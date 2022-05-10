@@ -1,0 +1,115 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-reddit": {
+        "executorLabel": "exec-reddit",
+        "inputDefinitions": {
+          "parameters": {
+            "project_id": {
+              "type": "STRING"
+            },
+            "secret_name": {
+              "type": "STRING"
+            },
+            "subreddit_name": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "Output": {
+              "type": "STRING"
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-reddit": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "reddit"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-auth' 'praw' 'google-cloud-secret-manager' 'numpy' 'pandas' 'kfp==1.8.12' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef reddit(\n    secret_name: str,\n    subreddit_name: str,\n    project_id: str,\n) -> str:\n    import praw\n    import pandas as pd\n    import numpy as np\n\n\n    def get_reddit_credentials(project_id):\n        from google.cloud import secretmanager\n        import json\n\n        client = secretmanager.SecretManagerServiceClient()\n\n        secret_resource_name = f\"projects/{project_id}/secrets/{secret_name}/versions/1\"\n        response = client.access_secret_version(request={\"name\": secret_resource_name})\n        payload = response.payload.data.decode(\"UTF-8\")\n\n        return json.loads(payload)\n\n    def get_reddit_posts(reddit_credentials):\n        import praw\n\n        reddit = praw.Reddit(client_id=reddit_credentials[\"client_id\"], \n                     client_secret=reddit_credentials[\"secret\"],\n                     user_agent=reddit_credentials[\"user_agent\"])\n        print(f\"Reddit is in read-only mode: {reddit.read_only}\")\n        return reddit.subreddit(subreddit_name).hot(limit=100)\n\n    nan_value = float(\"NaN\")\n\n    credentials = get_reddit_credentials(project_id)\n    posts = get_reddit_posts(credentials)\n\n    filtered_posts = [[s.title, s.selftext, s.id] for s in posts]\n\n    filtered_posts = np.array(filtered_posts)\n    reddit_posts_df = pd.DataFrame(filtered_posts,\n                                   columns=['Title', 'Posts', 'ID'])\n\n    reddit_posts_df.replace(\"\", nan_value, inplace=True)\n    reddit_posts_df = reddit_posts_df[reddit_posts_df.Posts != nan_value]\n\n    output = reddit_posts_df.iloc[6]['Title']\n    print(f\"Output should be: {output}\")\n\n    return output\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "simple-reddit"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "reddit": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-reddit"
+            },
+            "inputs": {
+              "parameters": {
+                "project_id": {
+                  "componentInputParameter": "project_id"
+                },
+                "secret_name": {
+                  "componentInputParameter": "secret_name"
+                },
+                "subreddit_name": {
+                  "componentInputParameter": "subreddit_name"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "reddit"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "project_id": {
+            "type": "STRING"
+          },
+          "secret_name": {
+            "type": "STRING"
+          },
+          "subreddit_name": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.12"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "gs://fantasy-maps/pipeline_root",
+    "parameters": {
+      "project_id": {
+        "stringValue": "fantasymaps-334622"
+      },
+      "secret_name": {
+        "stringValue": "reddit-api-key"
+      },
+      "subreddit_name": {
+        "stringValue": "googlecloud"
+      }
+    }
+  }
+}

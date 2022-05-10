@@ -1,0 +1,193 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-automlimagetrainingjob-run": {
+        "executorLabel": "exec-automlimagetrainingjob-run",
+        "inputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-imagedataset-create": {
+        "executorLabel": "exec-imagedataset-create",
+        "outputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-automlimagetrainingjob-run": {
+          "container": {
+            "args": [
+              "--init.project",
+              "fantasymaps-334622",
+              "--init.display_name",
+              "train-fantasy-maps-online-model-{{pipelineparam:op=;name=timestamp_str}}",
+              "--init.prediction_type",
+              "object_detection",
+              "--init.model_type",
+              "CLOUD_HIGH_ACCURACY_1",
+              "--method.model_display_name",
+              "fantasy-maps-online-model-{{pipelineparam:op=;name=timestamp_str}}",
+              "--method.training_fraction_split",
+              "0.7",
+              "--method.validation_fraction_split",
+              "0.2",
+              "--method.test_fraction_split",
+              "0.1",
+              "--method.budget_milli_node_hours",
+              "40000",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['model'].uri}}",
+              "--method.dataset",
+              "{{$.inputs.artifacts['dataset'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "AutoMLImageTrainingJob",
+              "--method_name",
+              "run"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        },
+        "exec-imagedataset-create": {
+          "container": {
+            "args": [
+              "--method.project",
+              "fantasymaps-334622",
+              "--method.display_name",
+              "fantasy-maps-max-grid-{{pipelineparam:op=;name=timestamp_str}}",
+              "--method.gcs_source",
+              "gs://fantasy-maps/Manifests/map_training_20220401212024.jsonl",
+              "--method.import_schema_uri",
+              "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['dataset'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "ImageDataset",
+              "--method_name",
+              "create"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "training-from-firestore"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "automlimagetrainingjob-run": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-automlimagetrainingjob-run"
+            },
+            "dependentTasks": [
+              "imagedataset-create"
+            ],
+            "inputs": {
+              "artifacts": {
+                "dataset": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "dataset",
+                    "producerTask": "imagedataset-create"
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "automlimagetrainingjob-run"
+            }
+          },
+          "imagedataset-create": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-imagedataset-create"
+            },
+            "taskInfo": {
+              "name": "imagedataset-create"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "bucket_name": {
+            "type": "STRING"
+          },
+          "collection_name": {
+            "type": "STRING"
+          },
+          "project_id": {
+            "type": "STRING"
+          },
+          "timestamp_str": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.10"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "gs://fantasy-maps/pipeline_root",
+    "parameters": {
+      "bucket_name": {
+        "stringValue": "fantasy-maps"
+      },
+      "collection_name": {
+        "stringValue": "FantasyMaps"
+      },
+      "project_id": {
+        "stringValue": "fantasymaps-334622"
+      },
+      "timestamp_str": {
+        "stringValue": "20220401212024"
+      }
+    }
+  }
+}

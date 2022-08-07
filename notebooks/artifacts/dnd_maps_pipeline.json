@@ -155,6 +155,49 @@
           }
         }
       },
+      "comp-endpoint-create": {
+        "executorLabel": "exec-endpoint-create",
+        "inputDefinitions": {
+          "parameters": {
+            "description": {
+              "type": "STRING"
+            },
+            "display_name": {
+              "type": "STRING"
+            },
+            "encryption_spec_key_name": {
+              "type": "STRING"
+            },
+            "labels": {
+              "type": "STRING"
+            },
+            "location": {
+              "type": "STRING"
+            },
+            "network": {
+              "type": "STRING"
+            },
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "endpoint": {
+              "artifactType": {
+                "schemaTitle": "google.VertexEndpoint",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "gcp_resources": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
       "comp-image-dataset-create": {
         "executorLabel": "exec-image-dataset-create",
         "inputDefinitions": {
@@ -197,6 +240,12 @@
         "executorLabel": "exec-model-deploy",
         "inputDefinitions": {
           "artifacts": {
+            "endpoint": {
+              "artifactType": {
+                "schemaTitle": "google.VertexEndpoint",
+                "schemaVersion": "0.0.1"
+              }
+            },
             "model": {
               "artifactType": {
                 "schemaTitle": "google.VertexModel",
@@ -376,6 +425,31 @@
             "image": "python:3.9"
           }
         },
+        "exec-endpoint-create": {
+          "container": {
+            "args": [
+              "--type",
+              "CreateEndpoint",
+              "--payload",
+              "{\"display_name\": \"{{$.inputs.parameters['display_name']}}\", \"description\": \"{{$.inputs.parameters['description']}}\", \"labels\": {{$.inputs.parameters['labels']}}, \"encryption_spec\": {\"kms_key_name\":\"{{$.inputs.parameters['encryption_spec_key_name']}}\"}, \"network\": \"{{$.inputs.parameters['network']}}\"}",
+              "--project",
+              "{{$.inputs.parameters['project']}}",
+              "--location",
+              "{{$.inputs.parameters['location']}}",
+              "--gcp_resources",
+              "{{$.outputs.parameters['gcp_resources'].output_file}}",
+              "--executor_input",
+              "{{$}}"
+            ],
+            "command": [
+              "python3",
+              "-u",
+              "-m",
+              "google_cloud_pipeline_components.container.v1.gcp_launcher.launcher"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:1.0.2"
+          }
+        },
         "exec-image-dataset-create": {
           "container": {
             "args": [
@@ -478,7 +552,7 @@
                 "display_name": {
                   "runtimeValue": {
                     "constantValue": {
-                      "stringValue": "train-dnd-maps-full-grid-model-online-20220508202623"
+                      "stringValue": "train-dnd-maps-full-grid-model-online-20220803020036"
                     }
                   }
                 },
@@ -499,7 +573,7 @@
                 "model_display_name": {
                   "runtimeValue": {
                     "constantValue": {
-                      "stringValue": "dnd-maps-full-grid-model-online-20220508202623"
+                      "stringValue": "dnd-maps-full-grid-model-online-20220803020036"
                     }
                   }
                 },
@@ -591,7 +665,7 @@
                 "display_name": {
                   "runtimeValue": {
                     "constantValue": {
-                      "stringValue": "train-dnd-maps-full-grid-model-exportable-20220508202623"
+                      "stringValue": "train-dnd-maps-full-grid-model-exportable-20220803020036"
                     }
                   }
                 },
@@ -612,7 +686,7 @@
                 "model_display_name": {
                   "runtimeValue": {
                     "constantValue": {
-                      "stringValue": "dnd-maps-full-grid-model-exportable-20220508202623"
+                      "stringValue": "dnd-maps-full-grid-model-exportable-20220803020036"
                     }
                   }
                 },
@@ -668,9 +742,7 @@
             }
           },
           "create-training-metadata-from-firestore-op": {
-            "cachingOptions": {
-              "enableCache": true
-            },
+            "cachingOptions": {},
             "componentRef": {
               "name": "comp-create-training-metadata-from-firestore-op"
             },
@@ -692,6 +764,66 @@
             },
             "taskInfo": {
               "name": "create-training-metadata-from-firestore-op"
+            }
+          },
+          "endpoint-create": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-endpoint-create"
+            },
+            "inputs": {
+              "parameters": {
+                "description": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "display_name": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "full-grid-model"
+                    }
+                  }
+                },
+                "encryption_spec_key_name": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "labels": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "{}"
+                    }
+                  }
+                },
+                "location": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": "us-central1"
+                    }
+                  }
+                },
+                "network": {
+                  "runtimeValue": {
+                    "constantValue": {
+                      "stringValue": ""
+                    }
+                  }
+                },
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "endpoint-create"
             }
           },
           "image-dataset-create": {
@@ -716,7 +848,7 @@
                 "display_name": {
                   "runtimeValue": {
                     "constantValue": {
-                      "stringValue": "dnd-maps-max-grid-20220508202623"
+                      "stringValue": "dnd-maps-max-grid-20220803020036"
                     }
                   }
                 },
@@ -764,10 +896,17 @@
               "name": "comp-model-deploy"
             },
             "dependentTasks": [
-              "automl-image-training-job"
+              "automl-image-training-job",
+              "endpoint-create"
             ],
             "inputs": {
               "artifacts": {
+                "endpoint": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "endpoint",
+                    "producerTask": "endpoint-create"
+                  }
+                },
                 "model": {
                   "taskOutputArtifact": {
                     "outputArtifactKey": "model",
@@ -779,14 +918,14 @@
                 "automatic_resources_max_replica_count": {
                   "runtimeValue": {
                     "constantValue": {
-                      "intValue": "0"
+                      "intValue": "1"
                     }
                   }
                 },
                 "automatic_resources_min_replica_count": {
                   "runtimeValue": {
                     "constantValue": {
-                      "intValue": "0"
+                      "intValue": "1"
                     }
                   }
                 },
@@ -914,7 +1053,7 @@
         "stringValue": "fantasymaps-334622"
       },
       "timestamp_str": {
-        "stringValue": "20220508202623"
+        "stringValue": "20220803020036"
       }
     }
   }

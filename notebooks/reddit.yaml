@@ -1,0 +1,67 @@
+name: Reddit
+inputs:
+- {name: secret_name, type: String}
+- {name: subreddit_name, type: String}
+- {name: gcs_bucket_name, type: String}
+- {name: gcs_prefix_name, type: String}
+- {name: project_id, type: String}
+- {name: limit, type: Integer}
+outputs:
+- {name: Output, type: String}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - |2
+
+      if ! [ -x "$(command -v pip)" ]; then
+          python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+      fi
+
+      PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'praw' 'google-cloud-secret-manager' 'google-cloud-storage' 'numpy' 'pandas' 'kfp==1.8.12' && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp -d)
+      printf "%s" "$0" > "$program_path/ephemeral_component.py"
+      python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+    - "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing\
+      \ import *\n\ndef reddit(\n    secret_name: str,\n    subreddit_name: str,\n\
+      \    gcs_bucket_name: str,\n    gcs_prefix_name: str,\n    project_id: str,\n\
+      \    limit: int,\n) -> str:\n    from datetime import datetime\n    import numpy\
+      \ as np\n    import pandas as pd\n    import praw\n    import re\n\n    from\
+      \ google.cloud import storage\n\n    def get_reddit_credentials(project_id):\n\
+      \        from google.cloud import secretmanager\n        import json\n\n   \
+      \     client = secretmanager.SecretManagerServiceClient()\n\n        secret_resource_name\
+      \ = f\"projects/{project_id}/secrets/{secret_name}/versions/1\"\n        response\
+      \ = client.access_secret_version(request={\"name\": secret_resource_name})\n\
+      \        payload = response.payload.data.decode(\"UTF-8\")\n\n        return\
+      \ json.loads(payload)\n\n    def get_reddit_posts(reddit_credentials):\n   \
+      \     import praw\n\n        reddit = praw.Reddit(client_id=reddit_credentials[\"\
+      client_id\"], \n                     client_secret=reddit_credentials[\"secret\"\
+      ],\n                     user_agent=reddit_credentials[\"user_agent\"])\n  \
+      \      print(f\"Reddit is in read-only mode: {reddit.read_only}\")\n       \
+      \ return reddit.subreddit(subreddit_name).hot(limit=limit)\n\n    nan_value\
+      \ = float(\"NaN\")\n\n    print(f\"Project ID is: {project_id}\")\n\n    # Get\
+      \ the data from Reddit\n    credentials = get_reddit_credentials(project_id)\n\
+      \    posts = get_reddit_posts(credentials)\n\n    dim_posts = filter(lambda\
+      \ p: len(re.findall(\"\\d+x\\d+\", p.title)) > 0, posts)\n\n    # Filter the\
+      \ posts the data that we want and store as DataFrame\n    filtered_posts = [[s.title,\
+      \ s.selftext, s.id, s.url] for s in dim_posts]\n\n    filtered_posts = np.array(filtered_posts)\n\
+      \    reddit_posts_df = pd.DataFrame(filtered_posts,\n                      \
+      \         columns=['Title', 'Post', 'ID', 'URL'])\n\n    reddit_posts_df.replace(\"\
+      \", nan_value, inplace=True)\n    reddit_posts_df = reddit_posts_df[reddit_posts_df[\"\
+      Post\"] != nan_value]\n\n    jpg_df = reddit_posts_df.loc[reddit_posts_df[\"\
+      URL\"].str.contains(\"jpg\")]\n    jpg_df.head(10)\n\n    # Save the dataframe\
+      \ as CSV in Storage\n    csv_str = jpg_df.to_csv()\n\n    storage_client = storage.Client(project=project_id)\n\
+      \    bucket = storage_client.bucket(gcs_bucket_name)\n\n    timestamp = datetime.now().strftime(\"\
+      %Y%m%d%H%M%S\")\n\n    csv_file_uri = f\"{gcs_prefix_name}/reddit-scraped-{subreddit_name}-{timestamp}.csv\"\
+      \n\n    file_blob = bucket.blob(csv_file_uri)\n    file_blob.upload_from_string(csv_str)\n\
+      \n    return csv_file_uri\n\n"
+    args:
+    - --executor_input
+    - {executorInput: null}
+    - --function_to_execute
+    - reddit

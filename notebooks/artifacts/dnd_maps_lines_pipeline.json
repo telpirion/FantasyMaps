@@ -1,0 +1,465 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-automlimagetrainingjob-run": {
+        "executorLabel": "exec-automlimagetrainingjob-run",
+        "inputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-automlimagetrainingjob-run-2": {
+        "executorLabel": "exec-automlimagetrainingjob-run-2",
+        "inputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          },
+          "parameters": {
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-create-training-metadata-from-firestore-op": {
+        "executorLabel": "exec-create-training-metadata-from-firestore-op",
+        "inputDefinitions": {
+          "parameters": {
+            "bucket_name": {
+              "type": "STRING"
+            },
+            "collection_name": {
+              "type": "STRING"
+            },
+            "project_id": {
+              "type": "STRING"
+            },
+            "timestamp_str": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "Output": {
+              "type": "STRING"
+            }
+          }
+        }
+      },
+      "comp-imagedataset-create": {
+        "executorLabel": "exec-imagedataset-create",
+        "inputDefinitions": {
+          "parameters": {
+            "gcs_source": {
+              "type": "STRING"
+            },
+            "project": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "dataset": {
+              "artifactType": {
+                "schemaTitle": "system.Dataset",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      },
+      "comp-model-deploy": {
+        "executorLabel": "exec-model-deploy",
+        "inputDefinitions": {
+          "artifacts": {
+            "model": {
+              "artifactType": {
+                "schemaTitle": "system.Model",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        },
+        "outputDefinitions": {
+          "artifacts": {
+            "endpoint": {
+              "artifactType": {
+                "schemaTitle": "system.Artifact",
+                "schemaVersion": "0.0.1"
+              }
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-automlimagetrainingjob-run": {
+          "container": {
+            "args": [
+              "--init.display_name",
+              "train-dnd-maps-lines-model-online-20220627181400",
+              "--init.prediction_type",
+              "object_detection",
+              "--init.model_type",
+              "CLOUD_HIGH_ACCURACY_1",
+              "--method.model_display_name",
+              "dnd-maps-lines-model-online-20220627181400",
+              "--method.training_fraction_split",
+              "0.7",
+              "--method.validation_fraction_split",
+              "0.2",
+              "--method.test_fraction_split",
+              "0.1",
+              "--method.budget_milli_node_hours",
+              "40000",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['model'].uri}}",
+              "--init.project",
+              "{{$.inputs.parameters['project']}}",
+              "--method.dataset",
+              "{{$.inputs.artifacts['dataset'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "AutoMLImageTrainingJob",
+              "--method_name",
+              "run"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        },
+        "exec-automlimagetrainingjob-run-2": {
+          "container": {
+            "args": [
+              "--init.display_name",
+              "train-dnd-maps-lines-model-exportable-20220627181400",
+              "--init.prediction_type",
+              "object_detection",
+              "--init.model_type",
+              "MOBILE_TF_HIGH_ACCURACY_1",
+              "--method.model_display_name",
+              "dnd-maps-lines-model-exportable-20220627181400",
+              "--method.training_fraction_split",
+              "0.7",
+              "--method.validation_fraction_split",
+              "0.2",
+              "--method.test_fraction_split",
+              "0.1",
+              "--method.budget_milli_node_hours",
+              "90000",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['model'].uri}}",
+              "--init.project",
+              "{{$.inputs.parameters['project']}}",
+              "--method.dataset",
+              "{{$.inputs.artifacts['dataset'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "AutoMLImageTrainingJob",
+              "--method_name",
+              "run"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        },
+        "exec-create-training-metadata-from-firestore-op": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "create_training_metadata_from_firestore_op"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-storage' 'google-cloud-firestore' 'kfp==1.8.12' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef create_training_metadata_from_firestore_op(\n    collection_name: str,\n    timestamp_str: str,\n    project_id: str,\n    bucket_name: str\n) -> str:\n\n    def vtt_to_bboxes(vtt):\n        cell_offset_x = vtt[\"cellOffsetX\"]\n        cell_offset_y = vtt[\"cellOffsetY\"]\n        cell_height = vtt[\"cellHeight\"]\n        cell_width = vtt[\"cellWidth\"]\n        image_height = vtt[\"imageHeight\"]\n        image_width = vtt[\"imageWidth\"]\n\n        \"\"\"Output format needs to be:\n        {\n            \"displayName\": \"\",\n            \"xMax\": #.#,\n            \"xMin\": #.#,\n            \"yMax\": #.#,\n            \"yMin\": #.#\n        }\n        \"\"\"\n\n        # Generate vertical bboxes\n        curr_x = cell_offset_x\n        bboxes_v = []\n        while curr_x < image_width:\n            curr_x = curr_x + cell_width\n            l_side = curr_x - 1\n            r_side = curr_x + 1\n\n            bboxes_v.append({\n                \"displayName\": \"vline\",\n                \"xMin\": l_side / image_width,\n                \"xMax\": r_side / image_width,\n                \"yMin\": 0.0,\n                \"yMax\": 1.0\n            })\n\n        # Generate horizontal bboxes\n        curr_y = cell_offset_y\n        bboxes_h = []\n        while curr_y < image_height:\n            curr_y = curr_y + cell_height\n            t_side = curr_y - 1\n            b_side = curr_y + 1\n\n            bboxes_h.append({\n                \"displayName\": \"hline\",\n                \"xMin\": 0.0,\n                \"xMax\": 1.0,\n                \"yMin\": t_side / image_height,\n                \"yMax\": b_side / image_height \n            })\n\n        bboxes_v.extend(bboxes_h)\n        return bboxes_v\n\n    from google.cloud import firestore\n    from google.cloud import storage\n\n    gs_training_data_uri = f\"Manifests/map_training_{timestamp_str}.jsonl\"\n\n    print(f\"Project ID: {project_id}\")\n\n    firestore_client = firestore.Client(project=project_id)\n    collection_ref = firestore_client.collection(collection_name)\n\n    training_data = []\n\n    # Get all of the non-test training data from collection\n    docs = (collection_ref\n                .where(\"source\", \"==\", \"TrainingData\")\n                .select([\"gcsURI\", \"vtt\"])\n                .stream())\n    for doc in docs:\n        doc_dict = doc.to_dict()\n\n        bboxes_lines = vtt_to_bboxes(doc_dict[\"vtt\"])\n\n        datum = {\n            \"imageGcsUri\": doc_dict[\"gcsURI\"],\n            \"boundingBoxAnnotations\": bboxes_lines\n        }\n        training_data.append(datum)\n\n    # TODO: define splits manually to verify differences between\n    # enhanced and unenhanced scraped data\n\n\n    storage_client = storage.Client(project=project_id)\n    bucket = storage_client.bucket(bucket_name)\n\n    input_str = \"\\n\".join([str(d) for d in training_data])\n    file_blob = bucket.blob(gs_training_data_uri)\n    file_blob.upload_from_string(input_str)\n\n    full_uri = f\"gs://{bucket_name}/{gs_training_data_uri}\"\n\n    return full_uri\n\n"
+            ],
+            "image": "python:3.9"
+          }
+        },
+        "exec-imagedataset-create": {
+          "container": {
+            "args": [
+              "--method.display_name",
+              "dnd-maps-lines-20220627181400",
+              "--method.import_schema_uri",
+              "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml",
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['dataset'].uri}}",
+              "--method.project",
+              "{{$.inputs.parameters['project']}}",
+              "--method.gcs_source",
+              "{{$.inputs.parameters['gcs_source']}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "ImageDataset",
+              "--method_name",
+              "create"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        },
+        "exec-model-deploy": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--resource_name_output_artifact_uri",
+              "{{$.outputs.artifacts['endpoint'].uri}}",
+              "--init.model_name",
+              "{{$.inputs.artifacts['model'].uri}}"
+            ],
+            "command": [
+              "python3",
+              "-m",
+              "google_cloud_pipeline_components.remote.aiplatform.remote_runner",
+              "--cls_name",
+              "Model",
+              "--method_name",
+              "deploy"
+            ],
+            "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:0.1.5"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "dnd-maps-training-and-deployment"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "automlimagetrainingjob-run": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-automlimagetrainingjob-run"
+            },
+            "dependentTasks": [
+              "imagedataset-create"
+            ],
+            "inputs": {
+              "artifacts": {
+                "dataset": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "dataset",
+                    "producerTask": "imagedataset-create"
+                  }
+                }
+              },
+              "parameters": {
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "automlimagetrainingjob-run"
+            }
+          },
+          "automlimagetrainingjob-run-2": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-automlimagetrainingjob-run-2"
+            },
+            "dependentTasks": [
+              "imagedataset-create"
+            ],
+            "inputs": {
+              "artifacts": {
+                "dataset": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "dataset",
+                    "producerTask": "imagedataset-create"
+                  }
+                }
+              },
+              "parameters": {
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "automlimagetrainingjob-run-2"
+            }
+          },
+          "create-training-metadata-from-firestore-op": {
+            "cachingOptions": {},
+            "componentRef": {
+              "name": "comp-create-training-metadata-from-firestore-op"
+            },
+            "inputs": {
+              "parameters": {
+                "bucket_name": {
+                  "componentInputParameter": "bucket_name"
+                },
+                "collection_name": {
+                  "componentInputParameter": "collection_name"
+                },
+                "project_id": {
+                  "componentInputParameter": "project"
+                },
+                "timestamp_str": {
+                  "componentInputParameter": "timestamp_str"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "create-training-metadata-from-firestore-op"
+            }
+          },
+          "imagedataset-create": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-imagedataset-create"
+            },
+            "dependentTasks": [
+              "create-training-metadata-from-firestore-op"
+            ],
+            "inputs": {
+              "parameters": {
+                "gcs_source": {
+                  "taskOutputParameter": {
+                    "outputParameterKey": "Output",
+                    "producerTask": "create-training-metadata-from-firestore-op"
+                  }
+                },
+                "project": {
+                  "componentInputParameter": "project"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "imagedataset-create"
+            }
+          },
+          "model-deploy": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-model-deploy"
+            },
+            "dependentTasks": [
+              "automlimagetrainingjob-run"
+            ],
+            "inputs": {
+              "artifacts": {
+                "model": {
+                  "taskOutputArtifact": {
+                    "outputArtifactKey": "model",
+                    "producerTask": "automlimagetrainingjob-run"
+                  }
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "model-deploy"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "bucket_name": {
+            "type": "STRING"
+          },
+          "collection_name": {
+            "type": "STRING"
+          },
+          "project": {
+            "type": "STRING"
+          },
+          "timestamp_str": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.12"
+  },
+  "runtimeConfig": {
+    "parameters": {
+      "bucket_name": {
+        "stringValue": "fantasy-maps"
+      },
+      "collection_name": {
+        "stringValue": "FantasyMaps"
+      },
+      "project": {
+        "stringValue": "fantasymaps-334622"
+      },
+      "timestamp_str": {
+        "stringValue": "20220627181400"
+      }
+    }
+  }
+}

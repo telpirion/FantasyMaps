@@ -1,0 +1,163 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-reddit": {
+        "executorLabel": "exec-reddit",
+        "inputDefinitions": {
+          "parameters": {
+            "gcs_bucket_name": {
+              "type": "STRING"
+            },
+            "gcs_prefix_name": {
+              "type": "STRING"
+            },
+            "limit": {
+              "type": "INT"
+            },
+            "project_id": {
+              "type": "STRING"
+            },
+            "secret_name": {
+              "type": "STRING"
+            },
+            "subreddit_name": {
+              "type": "STRING"
+            }
+          }
+        },
+        "outputDefinitions": {
+          "parameters": {
+            "Output": {
+              "type": "STRING"
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-reddit": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "reddit"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'praw' 'google-cloud-secret-manager' 'google-cloud-storage' 'numpy' 'pandas' 'spacy' 'kfp==1.8.12' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef reddit(\n    secret_name: str,\n    subreddit_name: str,\n    gcs_bucket_name: str,\n    gcs_prefix_name: str,\n    project_id: str,\n    limit: int,\n) -> str:\n    from datetime import datetime\n    import numpy as np\n    import pandas as pd\n    import praw\n    import re\n\n    from google.cloud import storage\n\n    def get_reddit_credentials(project_id):\n        \"\"\"Gets the Reddit API key out of Secrets Manager\n\n        Arguments:\n            project_id (str): the current project ID\n\n        Returns:\n            JSON object (dict)\n        \"\"\"\n        from google.cloud import secretmanager\n        import json\n\n        client = secretmanager.SecretManagerServiceClient()\n\n        secret_resource_name = f\"projects/{project_id}/secrets/{secret_name}/versions/1\"\n        response = client.access_secret_version(request={\"name\": secret_resource_name})\n        payload = response.payload.data.decode(\"UTF-8\")\n\n        return json.loads(payload)\n\n    def get_reddit_posts(reddit_credentials, subreddit_name, limit):\n        \"\"\"Gets posts from a subreddit.\n\n        Arguments:\n            reddit_credentials (dict): a dictionary with client_id, secret, and user_agent\n            subreddit_name (str): the name of the subreddit to scrape posts from\n            limit (int): the maximum number of posts to grab\n\n        Returns:\n            List of Reddit API objects\n        \"\"\"\n        import praw\n\n        reddit = praw.Reddit(client_id=reddit_credentials[\"client_id\"], \n                     client_secret=reddit_credentials[\"secret\"],\n                     user_agent=reddit_credentials[\"user_agent\"])\n\n        return reddit.subreddit(subreddit_name).hot(limit=limit)\n\n    def convert_posts_to_dataframe(posts, columns):\n        import numpy as np\n        import pandas as pd\n\n        filtered_posts = [[s.title, s.selftext, s.id, s.url] for s in posts]\n        filtered_posts = np.array(filtered_posts)\n        reddit_posts_df = pd.DataFrame(filtered_posts,\n                                   columns=columns)\n\n        return reddit_posts_df\n\n    COLUMNS = ['Title', 'Post', 'ID', 'URL']\n\n    # Get the data from Reddit\n    credentials = get_reddit_credentials(project_id=project_id)\n    posts = get_reddit_posts(reddit_credentials=credentials, subreddit_name=subreddit_name,\n                             limit=limit)\n\n    reddit_posts_df = convert_posts_to_dataframe(posts=posts, columns=COLUMNS)\n\n    # Remove all of the posts that don't meet our criteria\n    import re\n    jpg_df = reddit_posts_df[(reddit_posts_df[\"URL\"].str.contains(\"jpg\")) &\n                             (reddit_posts_df[\"Title\"].str.contains(pat = \"\\d+x\\d\"))]\n\n    # Save the dataframe as CSV in Storage\n    csv_str = jpg_df.to_csv()\n\n    storage_client = storage.Client(project=project_id)\n    bucket = storage_client.bucket(gcs_bucket_name)\n\n    timestamp = datetime.now().strftime(\"%Y%m%d%H%M%S\")\n\n    csv_file_uri = f\"{gcs_prefix_name}/reddit-scraped-{subreddit_name}-{timestamp}.csv\"\n\n    file_blob = bucket.blob(csv_file_uri)\n    file_blob.upload_from_string(csv_str)\n\n    return csv_file_uri\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "reddit-scraper-pipeline"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "reddit": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-reddit"
+            },
+            "inputs": {
+              "parameters": {
+                "gcs_bucket_name": {
+                  "componentInputParameter": "gcs_bucket"
+                },
+                "gcs_prefix_name": {
+                  "componentInputParameter": "gcs_prefix"
+                },
+                "limit": {
+                  "componentInputParameter": "limit"
+                },
+                "project_id": {
+                  "componentInputParameter": "project_id"
+                },
+                "secret_name": {
+                  "componentInputParameter": "secret_name"
+                },
+                "subreddit_name": {
+                  "componentInputParameter": "subreddit_name_1"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "reddit"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "collection_name": {
+            "type": "STRING"
+          },
+          "gcs_bucket": {
+            "type": "STRING"
+          },
+          "gcs_prefix": {
+            "type": "STRING"
+          },
+          "limit": {
+            "type": "INT"
+          },
+          "location": {
+            "type": "STRING"
+          },
+          "project_id": {
+            "type": "STRING"
+          },
+          "secret_name": {
+            "type": "STRING"
+          },
+          "subreddit_name_1": {
+            "type": "STRING"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.12"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "gs://fantasy-maps/pipeline_root",
+    "parameters": {
+      "collection_name": {
+        "stringValue": "FantasyMapsTest"
+      },
+      "gcs_bucket": {
+        "stringValue": "fantasy-maps"
+      },
+      "gcs_prefix": {
+        "stringValue": "ScrapedData"
+      },
+      "limit": {
+        "intValue": "300"
+      },
+      "location": {
+        "stringValue": "us-central1"
+      },
+      "project_id": {
+        "stringValue": "fantasymaps-334622"
+      },
+      "secret_name": {
+        "stringValue": "reddit-api-key"
+      },
+      "subreddit_name_1": {
+        "stringValue": "battlemaps"
+      }
+    }
+  }
+}

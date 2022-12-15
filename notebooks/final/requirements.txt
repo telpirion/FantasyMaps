@@ -1,0 +1,8 @@
+google-cloud-secret-manager
+google-cloud-aiplatform
+google-cloud-pipeline-components
+kfp
+praw
+pandas
+spacy
+pillow

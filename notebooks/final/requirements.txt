@@ -1,8 +1,7 @@
-google-cloud-secret-manager
-google-cloud-aiplatform
-google-cloud-pipeline-components
-kfp
+google-cloud-firestore
+google-cloud-storage
 praw
 pandas
+numpy
 spacy
 pillow

@@ -1,0 +1,9 @@
+
+datasets
+accelerate
+transformers[torch]
+evaluate
+timm
+albumentations
+ipywidgets
+tqdm

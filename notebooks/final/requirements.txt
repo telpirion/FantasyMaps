@@ -1,4 +1,5 @@
 google-cloud-firestore
+google-cloud-secret-manager
 google-cloud-storage
 praw
 pandas
